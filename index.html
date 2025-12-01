@@ -226,10 +226,11 @@
         // Load voices
         function loadVoices() {
             const voices = synth.getVoices();
+            console.log("Voices loaded:", voices.length);
         }
         loadVoices();
-        if (speechSynthesis.onvoiceschanged !== undefined) {
-            speechSynthesis.onvoiceschanged = loadVoices;
+        if (synth.onvoiceschanged !== undefined) {
+            synth.onvoiceschanged = loadVoices;
         }
 
         // --- Camera & OCR Functions ---
@@ -266,7 +267,7 @@
                     }
                 );
 
-                let scannedText = result.data.text;
+                let scannedText = result.data && result.data.text ? result.data.text : '';
                 
                 // Cleanup Text for App
                 // We want to KEEP punctuation for OCR now if they want to read it
@@ -383,9 +384,19 @@
             utterThis.lang = selectedLang;
             
             const voices = synth.getVoices();
-            if (selectedLang === 'zh-HK') {
-                const hkVoice = voices.find(v => v.lang === 'zh-HK');
-                if (hkVoice) utterThis.voice = hkVoice;
+            
+            // Try to find a voice that matches the selected language
+            // First try exact match, then prefix match (e.g. 'en-US' matches 'en-US-Standard-A')
+            let targetVoice = voices.find(v => v.lang === selectedLang) || 
+                              voices.find(v => v.lang.startsWith(selectedLang));
+
+            // Fallback for Cantonese if not found directly (some browsers use different codes)
+            if (!targetVoice && selectedLang === 'zh-HK') {
+                targetVoice = voices.find(v => v.lang.includes('zh-HK') || v.lang.includes('yue'));
+            }
+
+            if (targetVoice) {
+                utterThis.voice = targetVoice;
             }
 
             utterThis.rate = speakingRate;
