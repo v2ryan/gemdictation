@@ -7,8 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- Add Tesseract.js for OCR -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <style>
         body {
@@ -58,9 +56,6 @@
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
         }
         /* Loading Overlay */
-        #ocr-overlay {
-            backdrop-filter: blur(5px);
-        }
         /* Custom Checkbox */
         .toggle-checkbox:checked {
             right: 0;
@@ -105,13 +100,7 @@
                         <button onclick="clearInput()" class="text-red-400 hover:text-red-600 font-bold text-sm px-2" title="Clear Text">
                             🗑️ Clear
                         </button>
-                        <!-- Camera Button -->
-                        <button onclick="triggerCamera()" class="bg-white hover:bg-blue-50 text-blue-600 font-bold py-1 px-3 rounded-lg border-2 border-blue-200 text-sm flex items-center gap-1 shadow-sm">
-                            <span>📷</span> Scan Photo
-                        </button>
                     </div>
-                    <!-- Hidden File Input -->
-                    <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden" onchange="processImage(this)">
                 </div>
 
                 <textarea id="word-input" class="w-full h-32 p-4 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:outline-none text-lg resize-none" placeholder="Type words here or scan a photo...&#10;Example: Apple. Banana? Orange!">Apple., Banana?, Orange!</textarea>
@@ -230,13 +219,6 @@
         Message
     </div>
 
-    <!-- OCR Loading Overlay -->
-    <div id="ocr-overlay" class="hidden fixed inset-0 bg-black/50 z-50 flex flex-col items-center justify-center text-white">
-        <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-white mb-4"></div>
-        <h3 class="text-2xl font-black">Reading Photo...</h3>
-        <p class="text-sm opacity-80 mt-2" id="ocr-status">Initializing...</p>
-    </div>
-
     <script>
         // State variables
         let words = [];
@@ -255,67 +237,6 @@
         loadVoices();
         if (synth.onvoiceschanged !== undefined) {
             synth.onvoiceschanged = loadVoices;
-        }
-
-        // --- Camera & OCR Functions ---
-
-        function triggerCamera() {
-            document.getElementById('camera-input').click();
-        }
-
-        async function processImage(input) {
-            const file = input.files[0];
-            if (!file) return;
-
-            const overlay = document.getElementById('ocr-overlay');
-            const statusText = document.getElementById('ocr-status');
-            const textArea = document.getElementById('word-input');
-
-            // Show Loading UI
-            overlay.classList.remove('hidden');
-            statusText.innerText = "Starting engine (this may take a moment)...";
-
-            try {
-                // Tesseract configuration
-                const result = await Tesseract.recognize(
-                    file,
-                    'eng+chi_tra', 
-                    {
-                        logger: m => {
-                            if(m.status === 'recognizing text') {
-                                statusText.innerText = `Reading text: ${Math.round(m.progress * 100)}%`;
-                            } else {
-                                statusText.innerText = m.status;
-                            }
-                        }
-                    }
-                );
-
-                let scannedText = result.data && result.data.text ? result.data.text : '';
-                
-                // Cleanup Text for App
-                // We want to KEEP punctuation for OCR now if they want to read it
-                const cleanText = scannedText
-                    .replace(/\n\s*\n/g, '\n')  // Remove double spacing
-                    .replace(/\n/g, ', ')       // Newlines to commas (standard splitter)
-                    .replace(/[|\[\]{}]/g, '')  // Remove brackets but keep punctuation
-                    .trim();
-
-                if (cleanText.length > 0) {
-                    textArea.value = cleanText;
-                    showToast("✅ Words scanned successfully!");
-                } else {
-                    showToast("⚠️ No text found in image.");
-                }
-
-            } catch (error) {
-                console.error(error);
-                showToast("❌ Error reading image. Try again.");
-            } finally {
-                // Hide Loading UI & Reset Input
-                overlay.classList.add('hidden');
-                input.value = ''; 
-            }
         }
 
         // --- Core Functions ---
@@ -558,7 +479,6 @@
             if(document.getElementById('word-input').value.trim() === '') return;
             if(!confirm("Clear all text?")) return;
             document.getElementById('word-input').value = '';
-            document.getElementById('camera-input').value = ''; 
             showToast("Cleared!");
         }
 
