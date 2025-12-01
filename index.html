@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Super Star Dictation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Add Tesseract.js for OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f0f9ff;
+            touch-action: manipulation;
+        }
+        .blob {
+            position: absolute;
+            filter: blur(40px);
+            z-index: -1;
+            opacity: 0.4;
+            animation: move 10s infinite alternate;
+        }
+        @keyframes move {
+            from { transform: translate(0, 0) scale(1); }
+            to { transform: translate(20px, -20px) scale(1.1); }
+        }
+        input[type=range] {
+            height: 25px;
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 30px;
+            width: 30px;
+            border-radius: 50%;
+            background: #3b82f6;
+            margin-top: -10px;
+            box-shadow: 1px 1px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 10px;
+            cursor: pointer;
+            background: #dbeafe;
+            border-radius: 5px;
+        }
+        .kid-btn {
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .kid-btn:active {
+            transform: scale(0.95);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        /* Loading Overlay */
+        #ocr-overlay {
+            backdrop-filter: blur(5px);
+        }
+        /* Custom Checkbox */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #68D391;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
+
+    <!-- Background Blobs -->
+    <div class="blob bg-pink-300 w-64 h-64 rounded-full top-0 left-0"></div>
+    <div class="blob bg-yellow-200 w-72 h-72 rounded-full bottom-0 right-0"></div>
+    <div class="blob bg-blue-200 w-48 h-48 rounded-full top-1/2 left-1/2"></div>
+
+    <!-- Main Container -->
+    <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl w-full max-w-2xl p-6 border-4 border-blue-100 relative z-10">
+        
+        <!-- Header -->
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-black text-blue-600 tracking-tight">📝 Super Dictation</h1>
+            <p class="text-gray-500 font-bold mt-1">Listen and Write!</p>
+        </header>
+
+        <!-- Setup Section -->
+        <div id="setup-panel" class="space-y-6">
+            
+            <!-- Word Input -->
+            <div class="bg-blue-50 p-4 rounded-2xl border-2 border-blue-100 relative">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-blue-800 font-bold text-lg">1. Words List</label>
+                    
+                    <!-- Camera Button -->
+                    <button onclick="triggerCamera()" class="bg-white hover:bg-blue-50 text-blue-600 font-bold py-1 px-3 rounded-lg border-2 border-blue-200 text-sm flex items-center gap-1 shadow-sm">
+                        <span>📷</span> Scan Photo
+                    </button>
+                    <!-- Hidden File Input -->
+                    <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden" onchange="processImage(this)">
+                </div>
+
+                <textarea id="word-input" class="w-full h-32 p-4 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:outline-none text-lg resize-none" placeholder="Type words here or scan a photo...&#10;Example: Apple. Banana? Orange!">Apple., Banana?, Orange!</textarea>
+                <p class="text-sm text-gray-500 mt-2 text-right">Separate words with commas or new lines.</p>
+            </div>
+
+            <!-- Settings Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <!-- Language -->
+                <div class="bg-purple-50 p-4 rounded-2xl border-2 border-purple-100">
+                    <label class="block text-purple-800 font-bold mb-2">2. Language</label>
+                    <div class="relative">
+                        <select id="language-select" class="w-full p-3 rounded-xl border-2 border-purple-200 bg-white font-bold text-gray-700 text-lg focus:outline-none">
+                            <option value="en-US">🇺🇸 English (US)</option>
+                            <option value="en-GB">🇬🇧 English (UK)</option>
+                            <option value="zh-HK">🇭🇰 Cantonese</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Speed -->
+                <div class="bg-green-50 p-4 rounded-2xl border-2 border-green-100">
+                    <label class="block text-green-800 font-bold mb-2">3. Speed</label>
+                    <input type="range" id="speed-range" min="0.5" max="1.2" step="0.1" value="0.8">
+                    <div class="flex justify-between text-xs font-bold text-green-600 mt-1">
+                        <span>Slow Turtle 🐢</span>
+                        <span>Fast Rabbit 🐇</span>
+                    </div>
+                </div>
+
+                <!-- Options: Read Punctuation -->
+                <div class="bg-orange-50 p-4 rounded-2xl border-2 border-orange-100 md:col-span-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-orange-800 font-bold flex flex-col">
+                            <span>4. Read Punctuation?</span>
+                            <span class="text-xs text-orange-600 font-normal">Read "Full Stop", "Comma", etc.</span>
+                        </label>
+                        
+                        <!-- Toggle Switch -->
+                        <div class="relative inline-block w-14 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" name="toggle" id="read-punctuation" class="toggle-checkbox absolute block w-8 h-8 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300 left-0 transition-all duration-300"/>
+                            <label for="read-punctuation" class="toggle-label block overflow-hidden h-8 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Start Button -->
+            <button onclick="startDictation()" class="kid-btn w-full bg-blue-500 hover:bg-blue-600 text-white font-black text-2xl py-4 rounded-2xl shadow-lg border-b-4 border-blue-700">
+                START DICTATION ▶
+            </button>
+        </div>
+
+        <!-- Active Mode -->
+        <div id="active-panel" class="hidden text-center py-8">
+            <div class="mb-8">
+                <span class="inline-block bg-blue-100 text-blue-600 font-black px-4 py-2 rounded-full text-sm tracking-wide">
+                    DICTATION IN PROGRESS
+                </span>
+            </div>
+
+            <!-- Progress Display -->
+            <div class="relative w-48 h-48 mx-auto mb-8 flex items-center justify-center bg-blue-50 rounded-full border-8 border-blue-200">
+                <div>
+                    <div id="word-counter" class="text-6xl font-black text-blue-600">1</div>
+                    <div class="text-gray-400 font-bold text-lg">of <span id="total-words">10</span></div>
+                </div>
+            </div>
+
+            <!-- Current Action Status -->
+            <p id="status-text" class="text-xl font-bold text-gray-600 mb-8 min-h-[1.5em]">Get Ready...</p>
+
+            <!-- Controls -->
+            <div class="flex gap-4 justify-center">
+                <button onclick="repeatWord()" class="kid-btn flex-1 bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-4 rounded-2xl border-b-4 border-yellow-600 text-xl">
+                    🔄 Repeat
+                </button>
+                <button id="next-btn" onclick="nextWord()" class="kid-btn flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-2xl border-b-4 border-green-700 text-xl">
+                    Next ➡
+                </button>
+            </div>
+            
+            <button onclick="stopDictation()" class="mt-6 text-red-400 font-bold hover:text-red-600 underline">
+                Stop & Go Back
+            </button>
+        </div>
+
+        <!-- Finished Screen -->
+        <div id="finished-panel" class="hidden text-center py-10">
+            <div class="text-6xl mb-4">🏆</div>
+            <h2 class="text-3xl font-black text-blue-600 mb-2">Great Job!</h2>
+            <p class="text-gray-500 font-bold mb-8">You finished all the words.</p>
+            <button onclick="stopDictation()" class="kid-btn bg-purple-500 hover:bg-purple-600 text-white font-black py-3 px-8 rounded-2xl border-b-4 border-purple-700 text-xl">
+                Do it again?
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Notification/Toast -->
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full opacity-0 transition-opacity pointer-events-none font-bold z-50 whitespace-nowrap">
+        Message
+    </div>
+
+    <!-- OCR Loading Overlay -->
+    <div id="ocr-overlay" class="hidden fixed inset-0 bg-black/50 z-50 flex flex-col items-center justify-center text-white">
+        <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-white mb-4"></div>
+        <h3 class="text-2xl font-black">Reading Photo...</h3>
+        <p class="text-sm opacity-80 mt-2" id="ocr-status">Initializing...</p>
+    </div>
+
+    <script>
+        // State variables
+        let words = [];
+        let currentIndex = 0;
+        let synth = window.speechSynthesis;
+        let selectedLang = 'en-US';
+        let speakingRate = 0.8;
+        let shouldReadPunctuation = false; // New State
+        let isSpeaking = false;
+
+        // Load voices
+        function loadVoices() {
+            const voices = synth.getVoices();
+        }
+        loadVoices();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+        }
+
+        // --- Camera & OCR Functions ---
+
+        function triggerCamera() {
+            document.getElementById('camera-input').click();
+        }
+
+        async function processImage(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const overlay = document.getElementById('ocr-overlay');
+            const statusText = document.getElementById('ocr-status');
+            const textArea = document.getElementById('word-input');
+
+            // Show Loading UI
+            overlay.classList.remove('hidden');
+            statusText.innerText = "Starting engine (this may take a moment)...";
+
+            try {
+                // Tesseract configuration
+                const result = await Tesseract.recognize(
+                    file,
+                    'eng+chi_tra', 
+                    {
+                        logger: m => {
+                            if(m.status === 'recognizing text') {
+                                statusText.innerText = `Reading text: ${Math.round(m.progress * 100)}%`;
+                            } else {
+                                statusText.innerText = m.status;
+                            }
+                        }
+                    }
+                );
+
+                let scannedText = result.data.text;
+                
+                // Cleanup Text for App
+                // We want to KEEP punctuation for OCR now if they want to read it
+                const cleanText = scannedText
+                    .replace(/\n\s*\n/g, '\n')  // Remove double spacing
+                    .replace(/\n/g, ', ')       // Newlines to commas (standard splitter)
+                    .replace(/[|\[\]{}]/g, '')  // Remove brackets but keep punctuation
+                    .trim();
+
+                if (cleanText.length > 0) {
+                    textArea.value = cleanText;
+                    showToast("✅ Words scanned successfully!");
+                } else {
+                    showToast("⚠️ No text found in image.");
+                }
+
+            } catch (error) {
+                console.error(error);
+                showToast("❌ Error reading image. Try again.");
+            } finally {
+                // Hide Loading UI & Reset Input
+                overlay.classList.add('hidden');
+                input.value = ''; 
+            }
+        }
+
+        // --- Core Functions ---
+
+        function startDictation() {
+            const rawInput = document.getElementById('word-input').value;
+            // Split by comma or newline, trim whitespace, remove empty entries
+            words = rawInput.split(/[,\n]+/).map(w => w.trim()).filter(w => w.length > 0);
+
+            if (words.length === 0) {
+                showToast("Please enter some words first!");
+                return;
+            }
+
+            // Update State
+            currentIndex = 0;
+            selectedLang = document.getElementById('language-select').value;
+            speakingRate = parseFloat(document.getElementById('speed-range').value);
+            shouldReadPunctuation = document.getElementById('read-punctuation').checked; // Check Toggle
+
+            // Update UI
+            document.getElementById('setup-panel').classList.add('hidden');
+            document.getElementById('finished-panel').classList.add('hidden');
+            document.getElementById('active-panel').classList.remove('hidden');
+            
+            document.getElementById('total-words').innerText = words.length;
+            updateCounter();
+
+            setTimeout(() => {
+                speakWord(words[currentIndex]);
+            }, 500);
+        }
+
+        function stopDictation() {
+            synth.cancel();
+            document.getElementById('active-panel').classList.add('hidden');
+            document.getElementById('finished-panel').classList.add('hidden');
+            document.getElementById('setup-panel').classList.remove('hidden');
+            isSpeaking = false;
+        }
+
+        function nextWord() {
+            if (currentIndex < words.length - 1) {
+                currentIndex++;
+                updateCounter();
+                speakWord(words[currentIndex]);
+            } else {
+                finishSession();
+            }
+        }
+
+        function repeatWord() {
+            speakWord(words[currentIndex]);
+        }
+
+        function updateCounter() {
+            document.getElementById('word-counter').innerText = currentIndex + 1;
+        }
+
+        function speakWord(text) {
+            synth.cancel();
+
+            let textToSpeak = text;
+
+            // Punctuation Replacement Logic
+            if (shouldReadPunctuation) {
+                if (selectedLang === 'zh-HK') {
+                    // Cantonese Punctuation Names
+                    textToSpeak = textToSpeak
+                        .replace(/\./g, ' 句號 ')
+                        .replace(/,/g, ' 逗號 ')
+                        .replace(/\?/g, ' 問號 ')
+                        .replace(/!/g, ' 感嘆號 ')
+                        .replace(/;/g, ' 分號 ')
+                        .replace(/：/g, ' 冒號 ')
+                        .replace(/:/g, ' 冒號 ');
+                } else {
+                    // English Punctuation Names
+                    textToSpeak = textToSpeak
+                        .replace(/\./g, ' full stop ')
+                        .replace(/,/g, ' comma ')
+                        .replace(/\?/g, ' question mark ')
+                        .replace(/!/g, ' exclamation mark ')
+                        .replace(/;/g, ' semi colon ')
+                        .replace(/:/g, ' colon ');
+                }
+            }
+
+            const utterThis = new SpeechSynthesisUtterance(textToSpeak);
+            utterThis.lang = selectedLang;
+            
+            const voices = synth.getVoices();
+            if (selectedLang === 'zh-HK') {
+                const hkVoice = voices.find(v => v.lang === 'zh-HK');
+                if (hkVoice) utterThis.voice = hkVoice;
+            }
+
+            utterThis.rate = speakingRate;
+            utterThis.pitch = 1;
+
+            const statusEl = document.getElementById('status-text');
+            statusEl.innerText = "🔊 Speaking...";
+            statusEl.classList.add('text-blue-500');
+            
+            utterThis.onend = function() {
+                statusEl.innerText = "✍️ Write it down!";
+                statusEl.classList.remove('text-blue-500');
+            };
+
+            utterThis.onerror = function(event) {
+                console.error("SpeechSynthesis error", event);
+                showToast("Error playing audio.");
+            };
+
+            synth.speak(utterThis);
+        }
+
+        function finishSession() {
+            document.getElementById('active-panel').classList.add('hidden');
+            document.getElementById('finished-panel').classList.remove('hidden');
+            
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+            
+            const utterFinish = new SpeechSynthesisUtterance("Good job! You finished.");
+            utterFinish.lang = selectedLang.startsWith('zh') ? 'zh-HK' : 'en-US';
+            if(selectedLang === 'zh-HK') utterFinish.text = "做得好！你完成咗啦。";
+            synth.speak(utterFinish);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
