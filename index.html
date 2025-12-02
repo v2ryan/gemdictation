@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Super Star Dictation</title>
+    <title>超級聽寫王</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <style>
         body {
-            font-family: 'Nunito', sans-serif;
+            font-family: 'Nunito', 'Noto Sans TC', sans-serif;
             background-color: #f0f9ff;
-            touch-action: manipulation;
+            touch-action: manipulation; /* Improves touch response on iPad */
         }
         .blob {
             position: absolute;
@@ -55,7 +55,6 @@
             transform: scale(0.95);
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
         }
-        /* Loading Overlay */
         /* Custom Checkbox */
         .toggle-checkbox:checked {
             right: 0;
@@ -64,9 +63,26 @@
         .toggle-checkbox:checked + .toggle-label {
             background-color: #68D391;
         }
+        /* History Item Styling */
+        .history-item {
+            transition: all 0.2s;
+        }
+        .history-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        /* Modal Animation */
+        #confirm-modal-content {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
+<!-- Ensure overflow-y-auto is present for scrolling -->
+<body class="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-y-auto pb-20">
 
     <!-- Background Blobs -->
     <div class="blob bg-pink-300 w-64 h-64 rounded-full top-0 left-0"></div>
@@ -74,37 +90,51 @@
     <div class="blob bg-blue-200 w-48 h-48 rounded-full top-1/2 left-1/2"></div>
 
     <!-- Main Container -->
-    <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl w-full max-w-2xl p-6 border-4 border-blue-100 relative z-10">
+    <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl w-full max-w-2xl p-6 border-4 border-blue-100 relative z-10 my-4">
         
         <!-- Header -->
         <header class="text-center mb-6 relative">
-            <h1 class="text-4xl font-black text-blue-600 tracking-tight">📝 Super Dictation</h1>
-            <p class="text-gray-500 font-bold mt-1">Listen and Write!</p>
-            <button onclick="showHistory()" class="absolute top-0 right-0 p-2 text-blue-300 hover:text-blue-600 transition-colors" title="History">
+            <h1 class="text-4xl font-black text-blue-600 tracking-tight">📝 超級聽寫王</h1>
+            <p class="text-gray-500 font-bold mt-1">專心聽，慢慢寫！</p>
+            <button onclick="showHistory()" class="absolute top-0 right-0 p-2 text-blue-400 hover:text-blue-600 transition-colors flex flex-col items-center" title="歷史紀錄">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
+                <span class="text-xs font-bold">紀錄</span>
             </button>
         </header>
 
         <!-- Setup Section -->
         <div id="setup-panel" class="space-y-6">
             
+            <!-- Instructions Box -->
+            <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200 text-sm text-yellow-800">
+                <h3 class="font-black text-lg mb-2">💡 怎樣使用？</h3>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li>在下方格子輸入要默書的字，<span class="font-bold text-red-500">每一題請換一行 (按 Enter)</span>。</li>
+                    <li>如果是英文句子，可以直接輸入 (例如: <i>Apple is red.</i>)，程式會整句讀出。</li>
+                    <li>按「開始聽寫」後，會從第一題開始讀。</li>
+                </ul>
+            </div>
+
             <!-- Word Input -->
             <div class="bg-blue-50 p-4 rounded-2xl border-2 border-blue-100 relative">
                 <div class="flex justify-between items-center mb-2">
-                    <label class="block text-blue-800 font-bold text-lg">1. Words List</label>
+                    <label class="block text-blue-800 font-bold text-lg">1. 聽寫內容 (Words)</label>
                     
-                    <div class="flex gap-2">
-                        <!-- Clear Button -->
-                        <button onclick="clearInput()" class="text-red-400 hover:text-red-600 font-bold text-sm px-2" title="Clear Text">
-                            🗑️ Clear
-                        </button>
-                    </div>
+                    <button onclick="clearInput()" class="text-red-400 hover:text-red-600 font-bold text-sm px-2 flex items-center gap-1" title="清空所有文字">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        清空
+                    </button>
                 </div>
 
-                <textarea id="word-input" class="w-full h-32 p-4 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:outline-none text-lg resize-none" placeholder="Type words here or scan a photo...&#10;Example: Apple. Banana? Orange!">Apple., Banana?, Orange!</textarea>
-                <p class="text-sm text-gray-500 mt-2 text-right">Separate words with commas or new lines.</p>
+                <textarea id="word-input" class="w-full h-48 p-4 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:outline-none text-xl resize-none leading-relaxed text-gray-900 font-medium">蘋果
+香蕉
+Today is Monday.
+I like apples, bananas and oranges.</textarea>
+                <p class="text-xs text-gray-500 mt-2 text-right">記得按 Enter 換行來分隔每一題</p>
             </div>
 
             <!-- Settings Grid -->
@@ -112,23 +142,23 @@
                 
                 <!-- Language -->
                 <div class="bg-purple-50 p-4 rounded-2xl border-2 border-purple-100">
-                    <label class="block text-purple-800 font-bold mb-2">2. Language</label>
+                    <label class="block text-purple-800 font-bold mb-2">2. 選擇語言</label>
                     <div class="relative">
                         <select id="language-select" class="w-full p-3 rounded-xl border-2 border-purple-200 bg-white font-bold text-gray-700 text-lg focus:outline-none">
-                            <option value="en-US">🇺🇸 English (US)</option>
-                            <option value="en-GB">🇬🇧 English (UK)</option>
-                            <option value="zh-HK">🇭🇰 Cantonese</option>
+                            <option value="zh-HK">🇭🇰 廣東話 (Cantonese)</option>
+                            <option value="en-US">🇺🇸 英文 (English US)</option>
+                            <option value="en-GB">🇬🇧 英文 (English UK)</option>
                         </select>
                     </div>
                 </div>
 
                 <!-- Speed -->
                 <div class="bg-green-50 p-4 rounded-2xl border-2 border-green-100">
-                    <label class="block text-green-800 font-bold mb-2">3. Speed</label>
+                    <label class="block text-green-800 font-bold mb-2">3. 朗讀速度</label>
                     <input type="range" id="speed-range" min="0.5" max="1.2" step="0.1" value="0.8">
                     <div class="flex justify-between text-xs font-bold text-green-600 mt-1">
-                        <span>Slow Turtle 🐢</span>
-                        <span>Fast Rabbit 🐇</span>
+                        <span>慢吞吞烏龜 🐢</span>
+                        <span>快必兔子 🐇</span>
                     </div>
                 </div>
 
@@ -136,8 +166,8 @@
                 <div class="bg-orange-50 p-4 rounded-2xl border-2 border-orange-100 md:col-span-2">
                     <div class="flex items-center justify-between">
                         <label class="text-orange-800 font-bold flex flex-col">
-                            <span>4. Read Punctuation?</span>
-                            <span class="text-xs text-orange-600 font-normal">Read "Full Stop", "Comma", etc.</span>
+                            <span>4. 讀出標點符號？</span>
+                            <span class="text-xs text-orange-600 font-normal">讀出 "逗號"、"句號"、"問號" 等</span>
                         </label>
                         
                         <!-- Toggle Switch -->
@@ -150,8 +180,8 @@
             </div>
 
             <!-- Start Button -->
-            <button onclick="startDictation()" class="kid-btn w-full bg-blue-500 hover:bg-blue-600 text-white font-black text-2xl py-4 rounded-2xl shadow-lg border-b-4 border-blue-700">
-                START DICTATION ▶
+            <button onclick="startDictation()" class="kid-btn w-full bg-blue-500 hover:bg-blue-600 text-white font-black text-2xl py-4 rounded-2xl shadow-lg border-b-4 border-blue-700 tracking-wider">
+                開始聽寫 ▶
             </button>
         </div>
 
@@ -159,63 +189,91 @@
         <div id="active-panel" class="hidden text-center py-8">
             <div class="mb-8">
                 <span class="inline-block bg-blue-100 text-blue-600 font-black px-4 py-2 rounded-full text-sm tracking-wide">
-                    DICTATION IN PROGRESS
+                    聽寫進行中... 加油！
                 </span>
             </div>
 
             <!-- Progress Display -->
             <div class="relative w-48 h-48 mx-auto mb-8 flex items-center justify-center bg-blue-50 rounded-full border-8 border-blue-200">
                 <div>
+                    <div class="text-gray-400 font-bold text-lg mb-1">第</div>
                     <div id="word-counter" class="text-6xl font-black text-blue-600">1</div>
-                    <div class="text-gray-400 font-bold text-lg">of <span id="total-words">10</span></div>
+                    <div class="text-gray-400 font-bold text-lg mt-1">題 / 共 <span id="total-words">10</span> 題</div>
                 </div>
             </div>
 
             <!-- Current Action Status -->
-            <p id="status-text" class="text-xl font-bold text-gray-600 mb-8 min-h-[1.5em]">Get Ready...</p>
+            <p id="status-text" class="text-2xl font-bold text-gray-600 mb-8 min-h-[1.5em]">準備好了嗎？</p>
 
             <!-- Controls -->
             <div class="flex gap-4 justify-center">
                 <button onclick="repeatWord()" class="kid-btn flex-1 bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-4 rounded-2xl border-b-4 border-yellow-600 text-xl">
-                    🔄 Repeat
+                    🔄 再讀一次
                 </button>
                 <button id="next-btn" onclick="nextWord()" class="kid-btn flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-2xl border-b-4 border-green-700 text-xl">
-                    Next ➡
+                    下一題 ➡
                 </button>
             </div>
             
-            <button onclick="stopDictation()" class="mt-6 text-red-400 font-bold hover:text-red-600 underline">
-                Stop & Go Back
+            <button onclick="stopDictation()" class="mt-8 text-red-400 font-bold hover:text-red-600 underline">
+                停止及返回
             </button>
         </div>
 
         <!-- Finished Screen -->
         <div id="finished-panel" class="hidden text-center py-10">
             <div class="text-6xl mb-4">🏆</div>
-            <h2 class="text-3xl font-black text-blue-600 mb-2">Great Job!</h2>
-            <p class="text-gray-500 font-bold mb-8">You finished all the words.</p>
+            <h2 class="text-3xl font-black text-blue-600 mb-2">太棒了！</h2>
+            <p class="text-gray-500 font-bold mb-8">你已經完成了所有題目。</p>
             <button onclick="stopDictation()" class="kid-btn bg-purple-500 hover:bg-purple-600 text-white font-black py-3 px-8 rounded-2xl border-b-4 border-purple-700 text-xl">
-                Do it again?
+                再做一次？
             </button>
         </div>
 
-        <!-- History Panel -->
-        <div id="history-panel" class="hidden h-full flex flex-col">
-            <div class="flex justify-between items-center mb-4 border-b-2 border-blue-100 pb-2">
-                <h2 class="text-2xl font-black text-blue-600">📜 History</h2>
-                <button onclick="showSetup()" class="text-gray-400 font-bold hover:text-blue-500 text-lg">
-                    ✕
+        <!-- History Panel (Improved GUI) -->
+        <div id="history-panel" class="hidden absolute inset-0 bg-white z-50 flex flex-col p-6 rounded-3xl">
+            <div class="flex justify-between items-center mb-6 border-b-2 border-blue-100 pb-4">
+                <h2 class="text-3xl font-black text-blue-600 flex items-center gap-2">
+                    <span>📜</span> 歷史紀錄
+                </h2>
+                <button onclick="showSetup()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-full transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                 </button>
             </div>
-            <div id="history-list" class="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[60vh]">
-                <!-- History Items -->
+            
+            <p class="text-gray-500 mb-4 text-sm font-bold">點擊「複習」來重新載入之前的內容。</p>
+            
+            <div id="history-list" class="flex-1 overflow-y-auto space-y-4 pr-2">
+                <!-- History Items will be injected here -->
+            </div>
+            
+            <button onclick="clearHistory()" class="mt-4 text-red-400 font-bold text-sm hover:text-red-600 self-center">
+                清除所有紀錄
+            </button>
+        </div>
+
+        <!-- Custom Confirmation Modal (Replaces browser confirm) -->
+        <div id="confirm-modal" class="hidden fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div id="confirm-modal-content" class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl">
+                <h3 id="confirm-title" class="text-2xl font-black text-gray-800 mb-2">確定嗎？</h3>
+                <p id="confirm-msg" class="text-gray-500 font-bold mb-6">此操作無法復原。</p>
+                <div class="flex gap-3">
+                    <button onclick="closeConfirmModal()" class="flex-1 py-3 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
+                        取消 (Cancel)
+                    </button>
+                    <button onclick="onConfirmYes()" class="flex-1 py-3 rounded-xl font-black text-white bg-red-500 hover:bg-red-600 shadow-md transition-colors">
+                        確定 (Yes)
+                    </button>
+                </div>
             </div>
         </div>
 
     </div>
 
     <!-- Notification/Toast -->
-    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full opacity-0 transition-opacity pointer-events-none font-bold z-50 whitespace-nowrap">
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full opacity-0 transition-opacity pointer-events-none font-bold z-50 whitespace-nowrap shadow-lg">
         Message
     </div>
 
@@ -224,30 +282,50 @@
         let words = [];
         let currentIndex = 0;
         let synth = window.speechSynthesis;
-        let selectedLang = 'en-US';
+        let selectedLang = 'zh-HK'; // Default to Cantonese
         let speakingRate = 0.8;
-        let shouldReadPunctuation = false; // New State
+        let shouldReadPunctuation = false;
         let isSpeaking = false;
+        let confirmCallback = null; // Store function to run on confirm
 
         // Load voices
         function loadVoices() {
             const voices = synth.getVoices();
-            console.log("Voices loaded:", voices.length);
         }
         loadVoices();
         if (synth.onvoiceschanged !== undefined) {
             synth.onvoiceschanged = loadVoices;
         }
 
+        // --- Confirmation Modal Functions ---
+
+        function showConfirm(title, message, callback) {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-msg').innerText = message;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+            confirmCallback = callback;
+        }
+
+        function onConfirmYes() {
+            if (confirmCallback) confirmCallback();
+            closeConfirmModal();
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            confirmCallback = null;
+        }
+
         // --- Core Functions ---
 
         function startDictation() {
             const rawInput = document.getElementById('word-input').value;
-            // Split by comma or newline, trim whitespace, remove empty entries
-            words = rawInput.split(/[,\n]+/).map(w => w.trim()).filter(w => w.length > 0);
+            
+            // Only split by newline (\n)
+            words = rawInput.split(/\n+/).map(w => w.trim()).filter(w => w.length > 0);
 
             if (words.length === 0) {
-                showToast("Please enter some words first!");
+                showToast("⚠️ 請先輸入一些文字！");
                 return;
             }
 
@@ -255,19 +333,20 @@
             currentIndex = 0;
             selectedLang = document.getElementById('language-select').value;
             speakingRate = parseFloat(document.getElementById('speed-range').value);
-            shouldReadPunctuation = document.getElementById('read-punctuation').checked; // Check Toggle
+            shouldReadPunctuation = document.getElementById('read-punctuation').checked;
 
             // Update UI
             document.getElementById('setup-panel').classList.add('hidden');
             document.getElementById('finished-panel').classList.add('hidden');
+            document.getElementById('history-panel').classList.add('hidden');
             document.getElementById('active-panel').classList.remove('hidden');
             
             document.getElementById('total-words').innerText = words.length;
             updateCounter();
 
-            setTimeout(() => {
-                speakWord(words[currentIndex]);
-            }, 500);
+            // Speak first word IMMEDIATELY to satisfy mobile browser security policies
+            // (Do not use setTimeout here, or mobile browsers will block the audio)
+            speakWord(words[currentIndex]);
         }
 
         function stopDictation() {
@@ -306,12 +385,30 @@
                 if (selectedLang === 'zh-HK') {
                     // Cantonese Punctuation Names
                     textToSpeak = textToSpeak
+                        .replace(/《/g, ' 左書名號 ')
+                        .replace(/》/g, ' 右書名號 ')
+                        .replace(/「/g, ' 上引號 ')
+                        .replace(/」/g, ' 下引號 ')
+                        .replace(/（/g, ' 左括號 ')
+                        .replace(/\(/g, ' 左括號 ')
+                        .replace(/）/g, ' 右括號 ')
+                        .replace(/\)/g, ' 右括號 ')
+                        .replace(/“/g, ' 開引號 ')
+                        .replace(/”/g, ' 關引號 ')
+                        .replace(/＂/g, ' 雙引號 ')
+                        .replace(/"/g, ' 引號 ')
+                        .replace(/。/g, ' 句號 ')
+                        .replace(/，/g, ' 逗號 ')
+                        .replace(/？/g, ' 問號 ')
+                        .replace(/！/g, ' 感嘆號 ')
+                        .replace(/；/g, ' 分號 ')
+                        .replace(/：/g, ' 冒號 ')
+                        .replace(/、/g, ' 頓號 ')
                         .replace(/\./g, ' 句號 ')
                         .replace(/,/g, ' 逗號 ')
                         .replace(/\?/g, ' 問號 ')
                         .replace(/!/g, ' 感嘆號 ')
                         .replace(/;/g, ' 分號 ')
-                        .replace(/：/g, ' 冒號 ')
                         .replace(/:/g, ' 冒號 ');
                 } else {
                     // English Punctuation Names
@@ -321,7 +418,10 @@
                         .replace(/\?/g, ' question mark ')
                         .replace(/!/g, ' exclamation mark ')
                         .replace(/;/g, ' semi colon ')
-                        .replace(/:/g, ' colon ');
+                        .replace(/:/g, ' colon ')
+                        .replace(/\(/g, ' left bracket ')
+                        .replace(/\)/g, ' right bracket ')
+                        .replace(/"/g, ' quote ');
                 }
             }
 
@@ -329,13 +429,9 @@
             utterThis.lang = selectedLang;
             
             const voices = synth.getVoices();
-            
-            // Try to find a voice that matches the selected language
-            // First try exact match, then prefix match (e.g. 'en-US' matches 'en-US-Standard-A')
             let targetVoice = voices.find(v => v.lang === selectedLang) || 
                               voices.find(v => v.lang.startsWith(selectedLang));
-
-            // Fallback for Cantonese if not found directly (some browsers use different codes)
+            
             if (!targetVoice && selectedLang === 'zh-HK') {
                 targetVoice = voices.find(v => v.lang.includes('zh-HK') || v.lang.includes('yue'));
             }
@@ -348,17 +444,19 @@
             utterThis.pitch = 1;
 
             const statusEl = document.getElementById('status-text');
-            statusEl.innerText = "🔊 Speaking...";
+            statusEl.innerText = "🔊 正在讀...";
             statusEl.classList.add('text-blue-500');
             
             utterThis.onend = function() {
-                statusEl.innerText = "✍️ Write it down!";
+                statusEl.innerText = "✍️ 請寫下來！";
                 statusEl.classList.remove('text-blue-500');
             };
 
             utterThis.onerror = function(event) {
                 console.error("SpeechSynthesis error", event);
-                showToast("Error playing audio.");
+                if (event.error !== 'canceled') {
+                     showToast("播放聲音時出錯");
+                }
             };
 
             synth.speak(utterThis);
@@ -368,7 +466,7 @@
             document.getElementById('active-panel').classList.add('hidden');
             document.getElementById('finished-panel').classList.remove('hidden');
             
-            saveSessionToHistory(); // Auto-save
+            saveSessionToHistory();
 
             confetti({
                 particleCount: 150,
@@ -376,9 +474,10 @@
                 origin: { y: 0.6 }
             });
             
-            const utterFinish = new SpeechSynthesisUtterance("Good job! You finished.");
+            const utterFinish = new SpeechSynthesisUtterance("做的很棒！");
             utterFinish.lang = selectedLang.startsWith('zh') ? 'zh-HK' : 'en-US';
             if(selectedLang === 'zh-HK') utterFinish.text = "做得好！你完成咗啦。";
+            if(selectedLang.startsWith('en')) utterFinish.text = "Good Job! You finished.";
             synth.speak(utterFinish);
         }
 
@@ -392,15 +491,17 @@
 
         function saveSessionToHistory() {
             const history = getHistory();
+            const now = new Date();
+            const dateStr = `${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+            
             const newEntry = {
                 id: Date.now(),
-                date: new Date().toLocaleString(),
+                date: dateStr,
                 words: words,
                 lang: selectedLang
             };
             history.unshift(newEntry);
-            // Limit history to last 50 items
-            if (history.length > 50) history.pop();
+            if (history.length > 30) history.pop();
             localStorage.setItem('dictation_history', JSON.stringify(history));
         }
 
@@ -409,25 +510,41 @@
             const history = getHistory();
             
             if (history.length === 0) {
-                list.innerHTML = '<div class="text-center text-gray-400 py-8 font-bold">No history yet!<br><span class="text-sm font-normal">Complete a dictation to save it here.</span></div>';
+                list.innerHTML = `
+                    <div class="text-center text-gray-400 py-12">
+                        <div class="text-4xl mb-2">📭</div>
+                        <div class="font-bold">還沒有紀錄</div>
+                        <div class="text-sm font-normal">完成一次聽寫後會自動儲存</div>
+                    </div>`;
                 return;
             }
 
             list.innerHTML = history.map(item => `
-                <div class="bg-blue-50 p-3 rounded-xl border-2 border-blue-100 flex justify-between items-center hover:border-blue-300 transition-colors">
-                    <div class="overflow-hidden flex-1 mr-2">
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="text-xs font-black bg-white px-2 py-0.5 rounded text-blue-500 border border-blue-100">${getLangFlag(item.lang)}</span>
-                            <span class="font-bold text-blue-800 text-xs">${item.date}</span>
+                <div class="history-item bg-blue-50 p-4 rounded-2xl border-2 border-blue-100 flex flex-col gap-2">
+                    <div class="flex justify-between items-start border-b border-blue-200 pb-2 mb-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black bg-white px-2 py-1 rounded-lg text-blue-500 border border-blue-100 shadow-sm">
+                                ${getLangFlag(item.lang)}
+                            </span>
+                            <span class="font-bold text-blue-800 text-sm">${item.date}</span>
                         </div>
-                        <div class="text-gray-600 text-sm truncate font-medium">${item.words.join(', ')}</div>
+                        <span class="bg-blue-200 text-blue-800 text-xs font-bold px-2 py-1 rounded-full">
+                            ${item.words.length} 題
+                        </span>
                     </div>
-                    <div class="flex gap-2 shrink-0">
-                        <button onclick="loadHistoryItem(${item.id})" class="bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg text-xs font-bold shadow-sm" title="Review / Retry">
-                            Review
+                    
+                    <div class="text-gray-600 text-sm font-medium line-clamp-2 bg-white/50 p-2 rounded-lg">
+                        ${item.words.join(' • ')}
+                    </div>
+                    
+                    <div class="flex gap-2 mt-1">
+                        <button onclick="loadHistoryItem(${item.id})" class="flex-1 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white py-3 rounded-xl font-black shadow-sm flex items-center justify-center gap-2 transition-colors">
+                            <span>📝 複習 (Load)</span>
                         </button>
-                        <button onclick="deleteHistoryItem(${item.id})" class="text-red-300 hover:text-red-500 p-2" title="Delete">
-                            ✕
+                        <button onclick="deleteHistoryItem(${item.id})" class="w-14 bg-red-100 hover:bg-red-200 text-red-500 active:bg-red-300 py-3 rounded-xl font-black shadow-sm flex items-center justify-center transition-colors border-2 border-transparent hover:border-red-200" title="刪除此紀錄">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                         </button>
                     </div>
                 </div>
@@ -435,9 +552,9 @@
         }
 
         function getLangFlag(lang) {
-            if(lang === 'en-US') return '🇺🇸';
-            if(lang === 'en-GB') return '🇬🇧';
-            if(lang === 'zh-HK') return '🇭🇰';
+            if(lang === 'en-US') return '🇺🇸 英文';
+            if(lang === 'en-GB') return '🇬🇧 英文';
+            if(lang === 'zh-HK') return '🇭🇰 廣東話';
             return '🌐';
         }
 
@@ -445,27 +562,46 @@
             const history = getHistory();
             const item = history.find(i => i.id === id);
             if (item) {
-                document.getElementById('word-input').value = item.words.join(', ');
+                document.getElementById('word-input').value = item.words.join('\n');
                 document.getElementById('language-select').value = item.lang;
                 showSetup();
-                showToast("History loaded! Ready to start.");
+                showToast("✅ 已載入紀錄！按「開始」即可。");
             }
         }
 
+        // New function to handle single item deletion
         function deleteHistoryItem(id) {
-            if(!confirm("Delete this history item?")) return;
-            let history = getHistory();
-            history = history.filter(i => i.id !== id);
-            localStorage.setItem('dictation_history', JSON.stringify(history));
-            renderHistory();
+            showConfirm(
+                "刪除紀錄？", 
+                "確定要刪除這條紀錄嗎？無法復原。", 
+                () => {
+                    let history = getHistory();
+                    history = history.filter(item => item.id !== id);
+                    localStorage.setItem('dictation_history', JSON.stringify(history));
+                    renderHistory();
+                    showToast("🗑️ 紀錄已刪除");
+                }
+            );
+        }
+
+        function clearHistory() {
+            const history = getHistory();
+            if(history.length === 0) return;
+
+            showConfirm(
+                "清空歷史？", 
+                "確定要刪除所有紀錄嗎？", 
+                () => {
+                    localStorage.removeItem('dictation_history');
+                    renderHistory();
+                    showToast("🗑️ 歷史已清空");
+                }
+            );
         }
 
         function showHistory() {
-            document.getElementById('setup-panel').classList.add('hidden');
-            document.getElementById('active-panel').classList.add('hidden');
-            document.getElementById('finished-panel').classList.add('hidden');
-            document.getElementById('history-panel').classList.remove('hidden');
             renderHistory();
+            document.getElementById('history-panel').classList.remove('hidden');
         }
 
         function showSetup() {
@@ -476,10 +612,17 @@
         }
 
         function clearInput() {
-            if(document.getElementById('word-input').value.trim() === '') return;
-            if(!confirm("Clear all text?")) return;
-            document.getElementById('word-input').value = '';
-            showToast("Cleared!");
+            const input = document.getElementById('word-input');
+            if(input.value.trim() === '') return;
+            
+            showConfirm(
+                "清空文字？", 
+                "您輸入的內容將會消失。", 
+                () => {
+                    input.value = '';
+                    showToast("🗑️ 已清空");
+                }
+            );
         }
 
         function showToast(msg) {
