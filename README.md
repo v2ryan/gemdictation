@@ -1,4 +1,4 @@
-# Super Star Dictation 📝
+# Super Star Dictation 📝 (超級聽寫王)
 
 A fun and interactive web application designed to help kids practice dictation! This app allows users to input words, and then dictates them back one by one with adjustable speed and language options.
 
@@ -6,16 +6,18 @@ A fun and interactive web application designed to help kids practice dictation! 
 
 -   **Multi-Language Support**: Supports English (US), English (UK), and Cantonese (HK).
 -   **Adjustable Speed**: Control the speaking rate from "Slow Turtle" 🐢 to "Fast Rabbit" 🐇.
--   **Punctuation Reading**: Option to read out punctuation marks (e.g., "comma", "full stop") to help with writing precision.
+-   **Punctuation Reading**: Option to read out punctuation marks (e.g., "comma", "full stop", "句號", "逗號") to help with writing precision.
+-   **History & Auto-Save**: Automatically saves your dictation sessions. You can view past sessions, review them (reload words), or delete them.
 -   **Interactive UI**: Kid-friendly design with animations, confetti rewards, and easy-to-use controls.
 -   **Repeat & Next**: Easily repeat the current word or move to the next one.
--   **History & Auto-Save**: Automatically saves your dictation sessions so you can review them later.
+-   **Clear Input**: Quickly clear all text to start a new list.
 
 ## How to Use 🚀
 
 1.  **Open the App**: Open `index.html` in your web browser.
 2.  **Add Words**:
-    *   Type words into the text box (separated by commas or new lines).
+    *   Type words into the text box (separated by new lines).
+    *   Use the "Clear" button (🗑️) to remove all text.
 3.  **Settings**:
     *   Select the Language (English US/UK or Cantonese).
     *   Adjust the Speed slider.
@@ -26,6 +28,7 @@ A fun and interactive web application designed to help kids practice dictation! 
     *   Write it down.
     *   Click "Next ➡" for the next word or "🔄 Repeat" to hear it again.
 6.  **Finish**: Celebrate with confetti when you complete the list!
+7.  **History**: Click the "History" icon (📜) in the top right to view, load, or delete past sessions.
 
 ## Technologies Used 💻
 
