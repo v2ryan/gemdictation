@@ -344,10 +344,9 @@ I like apples, bananas and oranges.</textarea>
             document.getElementById('total-words').innerText = words.length;
             updateCounter();
 
-            // Speak first word after a tiny delay
-            setTimeout(() => {
-                speakWord(words[currentIndex]);
-            }, 800);
+            // Speak first word IMMEDIATELY to satisfy mobile browser security policies
+            // (Do not use setTimeout here, or mobile browsers will block the audio)
+            speakWord(words[currentIndex]);
         }
 
         function stopDictation() {
